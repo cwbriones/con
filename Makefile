@@ -7,6 +7,7 @@ TARGET:=con
 SOURCES:=$(shell find $(SRCDIR) -type f -name *.c)
 OBJECTS:=$(SOURCES:.c=.o)
 OBJECTS:=$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.c=.o))
+LIB := -L lib -ledit
 INCLUDE:=-I include
 
 CFLAGS:=-c -Wall -std=c11
