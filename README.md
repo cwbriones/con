@@ -1,0 +1,4 @@
+con
+###
+
+A tiny scheme.
