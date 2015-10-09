@@ -7,7 +7,7 @@ TARGET:=con
 SOURCES:=$(shell find $(SRCDIR) -type f -name *.c)
 OBJECTS:=$(SOURCES:.c=.o)
 OBJECTS:=$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.c=.o))
-LIB := -L lib -ledit
+LIB := -ledit
 INCLUDE:=-I include
 
 CFLAGS:=-c -Wall -std=c11
@@ -19,7 +19,7 @@ $(TARGET): $(OBJECTS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	mkdir -p $(BUILDDIR)
-	$(CC) $(CFLAGS) $(INC) -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDE) -o $@ $<
 
 clean:
 	@echo "Cleaning..."
