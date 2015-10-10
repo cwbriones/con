@@ -7,14 +7,18 @@ typedef enum CON_TYPE {
     FLONUM,
     LIST,
     SYMBOL,
-    EMPTY_LIST
+    EMPTY_LIST,
+    FUNCTION
 } CON_TYPE;
+
+typedef struct con_term_t* (*con_function)(struct con_term_t*);
 
 typedef struct con_term_t {
     CON_TYPE type;
     union {
         long fixnum;
         double flonum;
+        con_function function;
         struct {
             struct con_term_t* car;
             struct con_term_t* cdr;

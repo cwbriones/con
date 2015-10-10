@@ -59,10 +59,13 @@ int main(int argc, char** argv) {
     con_term_t* term = NULL;
     con_parser_t* parser = con_parser_init();
 
+    con_alloc_init();
     con_env* env = con_env_init(NULL);
+    con_env_add_builtins(env);
 
+    char* input = NULL;
     while (1) {
-        char* input = readline("con> ");
+        input = readline("con> ");
         add_history(input);
 
         if ((term = con_parser_parse(parser, "<stdin>", input))) {
@@ -73,6 +76,10 @@ int main(int argc, char** argv) {
 
         free(input);
     }
+
+    free(input);
+    con_alloc_deinit();
+    con_env_destroy(env);
 
     return 0;
 }
