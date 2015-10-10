@@ -5,28 +5,10 @@
 
 #include "con_term.h"
 #include "con_parse.h"
+#include "con_env.h"
+#include "con_alloc.h"
 
 void con_term_print(con_term_t*);
-
-void con_term_destroy(con_term_t* t) {
-    if (!t) {
-        return;
-    }
-    switch (t->type) {
-        case SYMBOL:
-            // Free the stored string
-            free(t->value.sym.str);
-            break;
-        case LIST:
-            // Recursively destroy
-            con_term_destroy(CAR(t));
-            con_term_destroy(CDR(t));
-            break;
-        default:
-            break;
-    }
-    free(t);
-}
 
 void con_term_print_pair(con_term_t*);
 
@@ -77,6 +59,8 @@ int main(int argc, char** argv) {
     con_term_t* term = NULL;
     con_parser_t* parser = con_parser_init();
 
+    con_env* env = con_env_init(NULL);
+
     while (1) {
         char* input = readline("con> ");
         add_history(input);
@@ -84,7 +68,7 @@ int main(int argc, char** argv) {
         if ((term = con_parser_parse(parser, "<stdin>", input))) {
             con_term_print(term);
             puts("");
-            con_term_destroy(term);
+            con_destroy(term);
         }
 
         free(input);

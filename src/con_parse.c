@@ -1,5 +1,6 @@
 #include "con_term.h"
 #include "con_parse.h"
+#include "con_alloc.h"
 #include "mpc.h"
 
 #define NUM_PARSERS 7
@@ -75,33 +76,21 @@ void con_parser_destroy(con_parser_t* parser) {
     }
 }
 
-con_term_t* make_empty_list() {
-    con_term_t* t = malloc(sizeof(con_term_t));
-    t->type = EMPTY_LIST;
-    CAR(t) = NULL;
-    CDR(t) = NULL;
-    return t;
-}
-
 con_term_t* mpc_ast_to_term(mpc_ast_t* t) {
     con_term_t *term = NULL;
     if (t->children_num && strstr(t->children[0]->tag, "regex")) {
         t = t->children[1];
     }
     if (strstr(t->tag, "fixnum")) {
-        term = malloc(sizeof(*term));
-        term->type = FIXNUM;
+        term = con_alloc(FIXNUM);
         term->value.fixnum = atoi(t->contents);
     } else if (strstr(t->tag, "flonum")) {
-        term = malloc(sizeof(*term));
-        term->type = FLONUM;
+        term = con_alloc(FLONUM);
         term->value.flonum = atof(t->contents);
     } else if (strstr(t->tag, "symbol")) {
+        term = con_alloc(SYMBOL);
         char* s = t->contents;
         size_t l = strlen(s);
-        term = malloc(sizeof(*term));
-        term->type = SYMBOL;
-
         // Create the symbol
         term->value.sym.str = malloc((l + 1) * sizeof(char));
         strcpy(term->value.sym.str, s);
@@ -122,12 +111,11 @@ con_term_t* mpc_ast_to_list(mpc_ast_t* t) {
         list = mpc_ast_to_term(t->children[n - 2]);
         i = n - 4;
     } else {
-        list = make_empty_list();
+        list = con_alloc(EMPTY_LIST);
     }
 
     while (i > 0) {
-        con_term_t* next = malloc(sizeof(*next));
-        next->type = LIST;
+        con_term_t* next = con_alloc(LIST);
         CAR(next) = mpc_ast_to_term(t->children[i]);
         CDR(next) = list;
         list = next;
