@@ -44,17 +44,25 @@ con_term_t* mpc_ast_to_term(mpc_ast_t* t);
 void con_term_print(con_term_t*);
 
 con_term_t* mpc_ast_to_list(mpc_ast_t* t) {
-    // Only 2 children means the empty list.
-    // Build up the linked list from the children.
-    con_term_t* list = make_empty_list();
+    con_term_t* list;
+    int n = t->children_num;
+    int i = n - 2;
 
-    for (int i = t->children_num - 2; i > 0; i--) {
+    if (n > 3 && strcmp(t->children[n - 3]->contents, ".") == 0) {
+        // Improper list
+        list = mpc_ast_to_term(t->children[n - 2]);
+        i = n - 4;
+    } else {
+        list = make_empty_list();
+    }
+
+    while (i > 0) {
         con_term_t* next = malloc(sizeof(*next));
         next->type = LIST;
         CAR(next) = mpc_ast_to_term(t->children[i]);
         CDR(next) = list;
-
         list = next;
+        i--;
     }
     return list;
 }
@@ -170,7 +178,7 @@ int main(int argc, char** argv) {
             operator  : '+' | '-' | '*' | '/' ;                  \
             symbol    : <operator> | /[_a-zA-Z][_a-zA-Z0-9]*/ ;  \
             term      : <flonum> | <fixnum> | <symbol> | <list>; \
-            list      : '(' <term>* ')'   ;                      \
+            list      : '(' <term>* ('.' <term>)? ')';           \
             con       : /^/ <term>  /$/   ;                      \
         ",
         fixnum, flonum, reserved, operator, symbol, term, list, con);
