@@ -4,7 +4,7 @@
 
 #include "mpc.h"
 
-#define NUM_PARSERS 8
+#define NUM_PARSERS 7
 
 struct con_parser_t {
     mpc_parser_t* con;
@@ -23,7 +23,6 @@ con_parser_t* con_parser_init() {
     mpc_parser_t* symbol     = mpc_new("symbol");
     mpc_parser_t* term       = mpc_new("term");
     mpc_parser_t* list       = mpc_new("list");
-    mpc_parser_t* quote      = mpc_new("quote");
     mpc_parser_t* con        = mpc_new("con");
 
     mpca_lang(MPCA_LANG_DEFAULT,
@@ -34,12 +33,12 @@ con_parser_t* con_parser_init() {
                         \"set\";                                 \
             operator  : '+' | '-' | '*' | '/' ;                  \
             symbol    : <operator> | /[_a-zA-Z][_a-zA-Z0-9]*/ ;  \
-            term      : <flonum> | <fixnum> | <symbol> | <list>; \
+            term      : <flonum> | <fixnum> | <symbol> | <list> |\
+                        \'\'\' <term>;                           \
             list      : '(' <term>* ('.' <term>)? ')';           \
-            quote     : \'\'\' <term> ;                          \
-            con       : /^/ <term>  /$/ | <quote> ;              \
+            con       : /^/ <term>  /$/ ;                        \
         ",
-        fixnum, flonum, reserved, operator, symbol, term, list, quote, con);
+        fixnum, flonum, reserved, operator, symbol, term, list, con);
 
     con_parser_t* parser = malloc(sizeof(*parser));
     parser->con = con;
@@ -51,7 +50,6 @@ con_parser_t* con_parser_init() {
     parser->rest[4] = symbol;
     parser->rest[5] = term;
     parser->rest[6] = list;
-    parser->rest[7] = quote;
 
     return parser;
 }
@@ -86,10 +84,11 @@ con_term_t* mpc_ast_to_term(mpc_ast_t* t) {
     if (t->children_num && strstr(t->children[0]->tag, "regex")) {
         t = t->children[1];
     }
-    if (t->children_num && strstr(t->children[0]->tag, "quote")) {
+
+    if (t->children_num == 2 && strstr(t->children[0]->contents, "'")) {
         // Quote is of the form ' <term>, so the first child
         // is the ' and the second the actual term.
-        t = t->children[0]->children[1];
+        t = t->children[1];
         term = con_alloc_pair(con_alloc_sym("quote"), mpc_ast_to_term(t));
     } else if (strstr(t->tag, "fixnum")) {
         term = con_alloc(FIXNUM);
