@@ -34,6 +34,9 @@ void con_term_print(con_term_t* t) {
         case BUILTIN:
             printf("<builtin-function>");
             break;
+        case LAMBDA:
+            printf("<lambda: %p>", t);
+            break;
         default:
             puts("Printing unhandled for term.");
     }
@@ -58,6 +61,7 @@ enum {
     KWD_QUOTE,
     KWD_DEFINE,
     KWD_SET,
+    KWD_LAMBDA,
     NUM_KEYWORDS
 } KEYWORDS;
 
@@ -66,6 +70,7 @@ static con_term_t* keywords[NUM_KEYWORDS];
 void init_keywords() {
     keywords[KWD_QUOTE]  = con_alloc_sym("quote");
     keywords[KWD_DEFINE] = con_alloc_sym("define");
+    keywords[KWD_LAMBDA] = con_alloc_sym("lambda");
 }
 
 con_term_t* eval(con_env* env, con_term_t* list);
@@ -98,9 +103,50 @@ void eval_define(con_env* env, con_term_t* t) {
     }
 }
 
+con_term_t* eval_lambda(con_env* env, con_term_t* t) {
+    if (t->value.list.length != 2) {
+        puts("ERROR: Invalid lambda form.");
+        return NULL;
+    }
+    con_term_t* vars = CAR(t);
+    con_term_t* body = CADR(t);
+    if (vars->type != LIST && vars->type != EMPTY_LIST) {
+        puts("ERROR: Invalid lambda form, variables must be a list.");
+        return NULL;
+    }
+    con_env* inner = con_env_init(env);
+
+    con_term_t* lambda = con_alloc(LAMBDA);
+    lambda->value.lambda.vars = vars;
+    lambda->value.lambda.env  = inner;
+    lambda->value.lambda.body = body;
+    return lambda;
+}
+
+con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
+    con_env* env     = lambda->value.lambda.env;
+    con_term_t* vars = lambda->value.lambda.vars;
+    int arity        = vars->value.list.length;
+    int length       = args->value.list.length;
+    if (length != arity) {
+        printf("ERROR: Expected %d arguments, got %d.\n", arity, length);
+        return NULL;
+    }
+    // Create the bindings in the lambda
+    con_term_t *v, *b;
+    while (vars->type != EMPTY_LIST) {
+        v = CAR(vars);
+        b = CAR(args);
+        con_env_bind(env, v, b);
+        vars = CDR(vars);
+        args = CDR(args);
+    }
+    return eval(env, lambda->value.lambda.body);
+}
+
 con_term_t* eval(con_env* env, con_term_t* t) {
     int type = t->type;
-    if (type == EMPTY_LIST || type == FIXNUM || type == FLONUM) {
+    if (type == EMPTY_LIST || type == FIXNUM || type == FLONUM || type == LAMBDA) {
         // These types are self-evaluating
         return t;
     } else if (type == SYMBOL) {
@@ -113,25 +159,25 @@ con_term_t* eval(con_env* env, con_term_t* t) {
             con_term_print(t);
             printf("'.\n");
         }
-    } else if (type == LIST) {
-        if (CAR(t) == keywords[KWD_QUOTE]) {
-            return CAR(CDR(t));
-        } else if (CAR(t) == keywords[KWD_DEFINE]) {
-            eval_define(env, CDR(t));
-            return NULL;
-        }
+    // Everything is a list from this point on
+    } else if (CAR(t) == keywords[KWD_QUOTE]) {
+        return CAR(CDR(t));
+    } else if (CAR(t) == keywords[KWD_DEFINE]) {
+        eval_define(env, CDR(t));
+    } else if (CAR(t) == keywords[KWD_LAMBDA]) {
+        return eval_lambda(env, CDR(t));
+    } else {
         con_term_t *call = eval_args(env, t), *func, *args;
 
         func = CAR(call);
         args = CDR(call);
 
-        if (func) {
-            if (func->type == BUILTIN) {
-                return func->value.builtin(args);
-            } else {
-                puts("ERROR: First element of list must be a function");
-            }
+        if (func && func->type == BUILTIN) {
+            return func->value.builtin(args);
+        } else if (func && func->type == LAMBDA) {
+            return eval_lambda_call(func, args);
         } else {
+            puts("ERROR: First element of list must be a function");
             puts("ERROR: Could not evaluate the list.");
         }
     }

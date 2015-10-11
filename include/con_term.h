@@ -8,10 +8,13 @@ typedef enum CON_TYPE {
     LIST,
     SYMBOL,
     EMPTY_LIST,
-    BUILTIN
+    BUILTIN,
+    LAMBDA
 } CON_TYPE;
 
 typedef struct con_term_t* (*con_builtin)(struct con_term_t*);
+
+struct con_env;
 
 typedef struct con_term_t {
     CON_TYPE type;
@@ -28,6 +31,11 @@ typedef struct con_term_t {
             char* str;
             size_t size;
         } sym;
+        struct {
+            struct con_env* env;
+            struct con_term_t* vars;
+            struct con_term_t* body;
+        } lambda;
     } value;
 } con_term_t;
 

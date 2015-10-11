@@ -17,7 +17,6 @@ con_env* con_env_init(con_env* parent) {
 
     env->parent = parent;
     env->table  = table;
-    env->parent = NULL;
 
     return env;
 }
@@ -146,7 +145,7 @@ con_term_t* con_env_lookup(con_env* env, con_term_t* sym) {
     do {
         val = g_hash_table_lookup(env->table, sym->value.sym.str);
         env = env->parent;
-    } while(val && env);
+    } while(!val && env);
     return val;
 }
 
