@@ -18,6 +18,11 @@ void con_alloc_deinit() {
 con_term_t* con_alloc(int type) {
     con_term_t* term = malloc(sizeof(*term));
     term->type = type;
+    if (type == EMPTY_LIST) {
+        CAR(term) = NULL;
+        CDR(term) = NULL;
+        term->value.list.length = 0;
+    }
     return term;
 }
 
@@ -26,6 +31,7 @@ con_term_t* con_alloc_sym(char* sym) {
     if (!(s = g_hash_table_lookup(con_symbols, sym))){
         size_t l = strlen(sym);
         // Create the symbol
+        s = con_alloc(SYMBOL);
         s->value.sym.str = malloc((l + 1) * sizeof(char));
         strcpy(s->value.sym.str, sym);
         s->value.sym.size = l;

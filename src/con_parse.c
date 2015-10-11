@@ -1,6 +1,7 @@
 #include "con_term.h"
 #include "con_parse.h"
 #include "con_alloc.h"
+
 #include "mpc.h"
 
 #define NUM_PARSERS 7
@@ -106,18 +107,20 @@ con_term_t* mpc_ast_to_list(mpc_ast_t* t) {
     int n = t->children_num;
     int i = n - 2;
 
-    if (n > 3 && strcmp(t->children[n - 3]->contents, ".") == 0) {
+    if (i > 1 && strcmp(t->children[i-1]->contents, ".") == 0) {
         // Improper list
-        list = mpc_ast_to_term(t->children[n - 2]);
+        list = mpc_ast_to_term(t->children[i]);
         i = n - 4;
     } else {
         list = con_alloc(EMPTY_LIST);
     }
 
+    size_t length = 0;
     while (i > 0) {
         con_term_t* next = con_alloc(LIST);
         CAR(next) = mpc_ast_to_term(t->children[i]);
         CDR(next) = list;
+        next->value.list.length = (++length);
         list = next;
         i--;
     }
