@@ -1,11 +1,12 @@
 #include <string.h>
+#include <stdio.h>
 
 #include <glib-2.0/glib.h>
 
 #include "con_alloc.h"
 #include "con_term.h"
 
-GHashTable* con_symbols;
+static GHashTable* con_symbols;
 
 void con_alloc_init() {
     con_symbols = g_hash_table_new(g_str_hash, g_str_equal);
@@ -38,6 +39,21 @@ con_term_t* con_alloc_sym(char* sym) {
         g_hash_table_insert(con_symbols, sym, s);
     }
     return s;
+}
+
+con_term_t* con_alloc_pair(con_term_t* fst, con_term_t* snd) {
+    con_term_t *term, *term_cdr;
+    term = con_alloc(LIST);
+    term->value.list.length = 2;
+    term_cdr = con_alloc(LIST);
+    term_cdr->value.list.length = 1;
+
+    CAR(term_cdr) = snd;
+    CDR(term_cdr) = con_alloc(EMPTY_LIST);
+    CAR(term) = fst;
+    CDR(term) = term_cdr;
+
+    return term;
 }
 
 void con_destroy(con_term_t* t) {

@@ -54,6 +54,17 @@ void con_term_print_pair(con_term_t* t) {
     }
 }
 
+enum {
+    KWD_QUOTE,
+    NUM_KEYWORDS
+} KEYWORDS;
+
+static con_term_t* keywords[NUM_KEYWORDS];
+
+void init_keywords() {
+    keywords[KWD_QUOTE] = con_alloc_sym("quote");
+}
+
 con_term_t* eval(con_env* env, con_term_t* list);
 
 con_term_t* eval_args(con_env* env, con_term_t* list) {
@@ -88,6 +99,9 @@ con_term_t* eval(con_env* env, con_term_t* t) {
             printf("'.\n");
         }
     } else if (type == LIST) {
+        if (CAR(t)->type == SYMBOL && CAR(t) == keywords[KWD_QUOTE]) {
+            return CAR(CDR(t));
+        }
         con_term_t *call = eval_args(env, t), *func, *args;
 
         func = CAR(call);
@@ -117,6 +131,8 @@ int main(int argc, char** argv) {
     con_alloc_init();
     con_env* global_env = con_env_init(NULL);
     con_env_add_builtins(global_env);
+
+    init_keywords();
 
     char* input = NULL;
     while (1) {
