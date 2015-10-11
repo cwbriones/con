@@ -56,13 +56,16 @@ void con_term_print_pair(con_term_t* t) {
 
 enum {
     KWD_QUOTE,
+    KWD_DEFINE,
+    KWD_SET,
     NUM_KEYWORDS
 } KEYWORDS;
 
 static con_term_t* keywords[NUM_KEYWORDS];
 
 void init_keywords() {
-    keywords[KWD_QUOTE] = con_alloc_sym("quote");
+    keywords[KWD_QUOTE]  = con_alloc_sym("quote");
+    keywords[KWD_DEFINE] = con_alloc_sym("define");
 }
 
 con_term_t* eval(con_env* env, con_term_t* list);
@@ -83,6 +86,18 @@ con_term_t* eval_args(con_env* env, con_term_t* list) {
     return args;
 }
 
+void eval_define(con_env* env, con_term_t* t) {
+    if (t->value.list.length != 2) {
+        puts("ERROR: Invalid define form.");
+    } else if (CAR(t)->type != SYMBOL) {
+        puts("ERROR: Invalid define form, expected symbol.");
+    }
+    con_term_t* val = eval(env, CADR(t));
+    if (val) {
+        con_env_bind(env, CAR(t), val);
+    }
+}
+
 con_term_t* eval(con_env* env, con_term_t* t) {
     int type = t->type;
     if (type == EMPTY_LIST || type == FIXNUM || type == FLONUM) {
@@ -99,8 +114,11 @@ con_term_t* eval(con_env* env, con_term_t* t) {
             printf("'.\n");
         }
     } else if (type == LIST) {
-        if (CAR(t)->type == SYMBOL && CAR(t) == keywords[KWD_QUOTE]) {
+        if (CAR(t) == keywords[KWD_QUOTE]) {
             return CAR(CDR(t));
+        } else if (CAR(t) == keywords[KWD_DEFINE]) {
+            eval_define(env, CDR(t));
+            return NULL;
         }
         con_term_t *call = eval_args(env, t), *func, *args;
 

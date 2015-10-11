@@ -33,6 +33,7 @@ typedef struct con_term_t {
 
 #define CAR(t) ((t)->value.list.car)
 #define CDR(t) ((t)->value.list.cdr)
+#define CADR(t) (CAR(CDR(t)))
 
 con_term_t* cons(con_term_t*, con_term_t*);
 
