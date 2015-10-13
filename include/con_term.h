@@ -9,6 +9,8 @@ typedef enum CON_TYPE {
     SYMBOL,
     EMPTY_LIST,
     BUILTIN,
+    CON_TRUE,
+    CON_FALSE,
     LAMBDA
 } CON_TYPE;
 
@@ -42,6 +44,7 @@ typedef struct con_term_t {
 #define CAR(t) ((t)->value.list.car)
 #define CDR(t) ((t)->value.list.cdr)
 #define CADR(t) (CAR(CDR(t)))
+#define CADDR(t) (CAR(CDR(CDR(t))))
 
 con_term_t* cons(con_term_t*, con_term_t*);
 

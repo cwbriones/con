@@ -4,7 +4,7 @@
 
 #include "mpc.h"
 
-#define NUM_PARSERS 7
+#define NUM_PARSERS 8
 
 struct con_parser_t {
     mpc_parser_t* con;
@@ -20,25 +20,27 @@ con_parser_t* con_parser_init() {
     mpc_parser_t* flonum     = mpc_new("flonum");
     mpc_parser_t* reserved   = mpc_new("reserved");
     mpc_parser_t* operator   = mpc_new("operator");
+    mpc_parser_t* boolean    = mpc_new("boolean");
     mpc_parser_t* symbol     = mpc_new("symbol");
     mpc_parser_t* term       = mpc_new("term");
     mpc_parser_t* list       = mpc_new("list");
     mpc_parser_t* con        = mpc_new("con");
 
     mpca_lang(MPCA_LANG_DEFAULT,
-        "                                                        \
-            fixnum    : /-?[0-9]+/ ;                             \
-            flonum    : /-?[0-9]+\\.[0-9]*/ ;                    \
-            reserved  : \"lambda\" | \"let\" | \"define\" |      \
-                        \"set\";                                 \
-            operator  : '+' | '-' | '*' | '/' ;                  \
-            symbol    : <operator> | /[_a-zA-Z][_a-zA-Z0-9]*/ ;  \
-            term      : <flonum> | <fixnum> | <symbol> | <list> |\
-                        \'\'\' <term>;                           \
-            list      : '(' <term>* ('.' <term>)? ')';           \
-            con       : /^/ <term>  /$/ ;                        \
+        "                                                             \
+            fixnum    : /-?[0-9]+/ ;                                  \
+            flonum    : /-?[0-9]+\\.[0-9]*/ ;                         \
+            reserved  : \"lambda\" | \"let\" | \"define\" |           \
+                        \"set\" | \"if\";                             \
+            operator  : '+' | '-' | '*' | '/' ;                       \
+            boolean   : \"true\" | \"false\" ;                        \
+            symbol    : <operator> | /[_a-zA-Z][_a-zA-Z0-9]*[\?!]?/;  \
+            term      : <flonum> | <fixnum> | <boolean> | <list> |    \
+                        <symbol> | \'\'\' <term>;                     \
+            list      : '(' <term>* ('.' <term>)? ')';                \
+            con       : /^/ <term>  /$/ ;                             \
         ",
-        fixnum, flonum, reserved, operator, symbol, term, list, con);
+        fixnum, flonum, reserved, operator, boolean, symbol, term, list, con);
 
     con_parser_t* parser = malloc(sizeof(*parser));
     parser->con = con;
@@ -47,9 +49,10 @@ con_parser_t* con_parser_init() {
     parser->rest[1] = flonum;
     parser->rest[2] = reserved;
     parser->rest[3] = operator;
-    parser->rest[4] = symbol;
-    parser->rest[5] = term;
-    parser->rest[6] = list;
+    parser->rest[4] = boolean;
+    parser->rest[5] = symbol;
+    parser->rest[6] = term;
+    parser->rest[7] = list;
 
     return parser;
 }
@@ -100,6 +103,8 @@ con_term_t* mpc_ast_to_term(mpc_ast_t* t) {
         term = con_alloc_sym(t->contents);
     } else if (strstr(t->tag, "list")) {
         term = mpc_ast_to_list(t);
+    } else if (strstr(t->tag, "boolean")) {
+        term = strstr(t->contents, "true") ? con_alloc_true() : con_alloc_false();
     }
     return term;
 }

@@ -7,13 +7,18 @@
 #include "con_term.h"
 
 static GHashTable* con_symbols;
+static con_term_t *con_true = NULL, *con_false = NULL;
 
 void con_alloc_init() {
     con_symbols = g_hash_table_new(g_str_hash, g_str_equal);
+    con_true    = con_alloc(CON_TRUE);
+    con_false   = con_alloc(CON_FALSE);
 }
 
 void con_alloc_deinit() {
     g_hash_table_destroy(con_symbols);
+    con_destroy(con_true);
+    con_destroy(con_false);
 }
 
 con_term_t* con_alloc(int type) {
@@ -74,4 +79,12 @@ void con_destroy(con_term_t* t) {
             break;
     }
     free(t);
+}
+
+con_term_t* con_alloc_true() {
+    return con_true;
+}
+
+con_term_t* con_alloc_false() {
+    return con_false;
 }

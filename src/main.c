@@ -37,6 +37,12 @@ void con_term_print(con_term_t* t) {
         case LAMBDA:
             printf("<lambda: %p>", t);
             break;
+        case CON_TRUE:
+            printf("true");
+            break;
+        case CON_FALSE:
+            printf("false");
+            break;
         default:
             puts("Printing unhandled for term.");
     }
@@ -62,6 +68,7 @@ enum {
     KWD_DEFINE,
     KWD_SET,
     KWD_LAMBDA,
+    KWD_IF,
     NUM_KEYWORDS
 } KEYWORDS;
 
@@ -71,6 +78,7 @@ void init_keywords() {
     keywords[KWD_QUOTE]  = con_alloc_sym("quote");
     keywords[KWD_DEFINE] = con_alloc_sym("define");
     keywords[KWD_LAMBDA] = con_alloc_sym("lambda");
+    keywords[KWD_IF]     = con_alloc_sym("if");
 }
 
 con_term_t* eval(con_env* env, con_term_t* list);
@@ -146,10 +154,7 @@ con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
 
 con_term_t* eval(con_env* env, con_term_t* t) {
     int type = t->type;
-    if (type == EMPTY_LIST || type == FIXNUM || type == FLONUM || type == LAMBDA) {
-        // These types are self-evaluating
-        return t;
-    } else if (type == SYMBOL) {
+    if (type == SYMBOL) {
         // resolve a lookup
         con_term_t* value;
         if ((value = con_env_lookup(env, t))) {
@@ -159,13 +164,31 @@ con_term_t* eval(con_env* env, con_term_t* t) {
             con_term_print(t);
             printf("'.\n");
         }
+    } else if (type != LIST) {
+        return t;
+    }
     // Everything is a list from this point on
-    } else if (CAR(t) == keywords[KWD_QUOTE]) {
+    if (CAR(t) == keywords[KWD_QUOTE]) {
         return CAR(CDR(t));
     } else if (CAR(t) == keywords[KWD_DEFINE]) {
         eval_define(env, CDR(t));
     } else if (CAR(t) == keywords[KWD_LAMBDA]) {
         return eval_lambda(env, CDR(t));
+    } else if (CAR(t) == keywords[KWD_IF]) {
+        if (t->value.list.length != 4) {
+            puts("ERROR: Invalid 'if' form.");
+            return NULL;
+        }
+        t = CDR(t);
+        con_term_t *cond, *body, *res;
+        cond = CAR(t);
+        // Initialize body to false
+        body = CADDR(t);
+        res = eval(env, cond);
+        if (res && res->type == CON_TRUE) {
+            body = CADR(t);
+        }
+        return eval(env, body);
     } else {
         con_term_t *call = eval_args(env, t), *func, *args;
 
