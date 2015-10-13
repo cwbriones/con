@@ -61,6 +61,12 @@ con_term_t* con_alloc_pair(con_term_t* fst, con_term_t* snd) {
     return term;
 }
 
+con_term_t* con_alloc_env(con_term_t* parent) {
+    con_term_t* t = con_alloc(ENVIRONMENT);
+    con_env_init(t, parent);
+    return t;
+}
+
 void con_destroy(con_term_t* t) {
     if (!t) {
         return;
@@ -69,6 +75,9 @@ void con_destroy(con_term_t* t) {
         case SYMBOL:
             // Free the stored string
             free(t->value.sym.str);
+            break;
+        case ENVIRONMENT:
+            con_env_deinit(t);
             break;
         case LIST:
             // Recursively destroy

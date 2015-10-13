@@ -34,7 +34,7 @@ con_parser_t* con_parser_init() {
                         \"set\" | \"if\";                             \
             operator  : '+' | '-' | '*' | '/' ;                       \
             boolean   : \"true\" | \"false\" ;                        \
-            symbol    : <operator> | /[_a-zA-Z][_a-zA-Z0-9]*[\?!]?/;  \
+            symbol    : <operator> | /[_a-zA-Z][_a-zA-Z\\-0-9]*[\?!]?/;\
             term      : <flonum> | <fixnum> | <boolean> | <list> |    \
                         <symbol> | \'\'\' <term>;                     \
             list      : '(' <term>* ('.' <term>)? ')';                \

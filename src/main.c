@@ -5,8 +5,8 @@
 
 #include "con_term.h"
 #include "con_parse.h"
-#include "con_env.h"
 #include "con_alloc.h"
+#include "con_builtins.h"
 
 void con_term_print(con_term_t*);
 
@@ -81,9 +81,9 @@ void init_keywords() {
     keywords[KWD_IF]     = con_alloc_sym("if");
 }
 
-con_term_t* eval(con_env* env, con_term_t* list);
+con_term_t* eval(con_term_t* env, con_term_t* list);
 
-con_term_t* eval_args(con_env* env, con_term_t* list) {
+con_term_t* eval_args(con_term_t* env, con_term_t* list) {
     // Create the evaluated args by reversing and evaluating
     con_term_t *args, **a = &args;
     size_t length = list->value.list.length;
@@ -99,7 +99,7 @@ con_term_t* eval_args(con_env* env, con_term_t* list) {
     return args;
 }
 
-void eval_define(con_env* env, con_term_t* t) {
+void eval_define(con_term_t* env, con_term_t* t) {
     if (t->value.list.length != 2) {
         puts("ERROR: Invalid define form.");
     } else if (CAR(t)->type != SYMBOL) {
@@ -111,7 +111,7 @@ void eval_define(con_env* env, con_term_t* t) {
     }
 }
 
-con_term_t* eval_lambda(con_env* env, con_term_t* t) {
+con_term_t* eval_lambda(con_term_t* env, con_term_t* t) {
     if (t->value.list.length != 2) {
         puts("ERROR: Invalid lambda form.");
         return NULL;
@@ -122,7 +122,7 @@ con_term_t* eval_lambda(con_env* env, con_term_t* t) {
         puts("ERROR: Invalid lambda form, variables must be a list.");
         return NULL;
     }
-    con_env* inner = con_env_init(env);
+    con_term_t* inner = con_alloc_env(env);
 
     con_term_t* lambda = con_alloc(LAMBDA);
     lambda->value.lambda.vars = vars;
@@ -132,7 +132,7 @@ con_term_t* eval_lambda(con_env* env, con_term_t* t) {
 }
 
 con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
-    con_env* env     = lambda->value.lambda.env;
+    con_term_t* env  = lambda->value.lambda.env;
     con_term_t* vars = lambda->value.lambda.vars;
     int arity        = vars->value.list.length;
     int length       = args->value.list.length;
@@ -152,7 +152,7 @@ con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
     return eval(env, lambda->value.lambda.body);
 }
 
-con_term_t* eval(con_env* env, con_term_t* t) {
+con_term_t* eval(con_term_t* env, con_term_t* t) {
     int type = t->type;
     if (type == SYMBOL) {
         // resolve a lookup
@@ -164,6 +164,7 @@ con_term_t* eval(con_env* env, con_term_t* t) {
             con_term_print(t);
             printf("'.\n");
         }
+        return NULL;
     } else if (type != LIST) {
         return t;
     }
@@ -216,7 +217,7 @@ int main(int argc, char** argv) {
     con_parser_t* parser = con_parser_init();
 
     con_alloc_init();
-    con_env* global_env = con_env_init(NULL);
+    con_term_t* global_env = con_alloc_env(NULL);
     con_env_add_builtins(global_env);
 
     init_keywords();
@@ -234,10 +235,9 @@ int main(int argc, char** argv) {
         }
         free(input);
     }
-
     free(input);
+
     con_alloc_deinit();
-    con_env_destroy(global_env);
 
     return 0;
 }

@@ -10,6 +10,7 @@ struct con_term_t* con_alloc_sym(char*);
 struct con_term_t* con_alloc_true();
 struct con_term_t* con_alloc_false();
 struct con_term_t* con_alloc_pair(struct con_term_t*, struct con_term_t*);
+struct con_term_t* con_alloc_env(struct con_term_t*);
 void   con_destroy(struct con_term_t*);
 
 #endif // CON_ALLOC_H
