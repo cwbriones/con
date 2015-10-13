@@ -12,6 +12,7 @@ typedef enum CON_TYPE {
     CON_TRUE,
     CON_FALSE,
     ENVIRONMENT,
+    UNDEFINED,
     LAMBDA
 } CON_TYPE;
 
@@ -40,7 +41,7 @@ typedef struct con_term_t {
             size_t size;
         } sym;
         struct {
-            struct con_term_t* env;
+            struct con_term_t* parent_env;
             struct con_term_t* vars;
             struct con_term_t* body;
         } lambda;
@@ -53,12 +54,15 @@ struct con_term_t*  con_env_lookup(con_term_t*, struct con_term_t*);
 int                 con_env_bind(con_term_t*, struct con_term_t*, struct con_term_t*);
 void                con_env_add_builtins(con_term_t*);
 
+void                con_term_print(con_term_t*);
+void                con_term_print_message(char*, con_term_t*);
+
+con_term_t*         cons(con_term_t*, con_term_t*);
+void                trace(con_term_t*);
+
 #define CAR(t) ((t)->value.list.car)
 #define CDR(t) ((t)->value.list.cdr)
 #define CADR(t) (CAR(CDR(t)))
 #define CADDR(t) (CAR(CDR(CDR(t))))
-
-con_term_t* cons(con_term_t*, con_term_t*);
-void trace(con_term_t*);
 
 #endif /* end of include guard:  */

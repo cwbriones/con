@@ -9,6 +9,18 @@
 #define POOL_SIZE 100
 #define POOL_ARENA_SIZE 1000
 
+#ifdef GC_DEBUG
+#define INIT_GC_ALLOC_TRIGGER 1
+#define GC_ALLOC_TRIGGER 1
+#else
+#define INIT_GC_ALLOC_TRIGGER 500
+#define GC_ALLOC_TRIGGER 100
+#endif
+
+// Needed for garbage collection
+static size_t allocations_since_gc = 0;
+static int initial_gc = 0;
+
 // Symbol table and singletons
 static GHashTable* con_symbols = NULL;
 static con_term_t *con_true = NULL, *con_false = NULL;
@@ -21,12 +33,13 @@ typedef struct {
 } arena;
 
 arena* arena_init(size_t capacity) {
-    puts("Initializing an arena.");
     arena* a = calloc(1, sizeof(*a));
     a->contents = calloc(capacity, sizeof(con_term_t));
     a->free = calloc(capacity, sizeof(size_t));
     for(int i = 0; i < capacity; i++) {
         a->free[i] = i;
+        a->contents[i].mark = 0;
+        a->contents[i].type = UNDEFINED;
     }
     a->capacity = capacity;
     a->size = 0;
@@ -48,21 +61,41 @@ con_term_t* arena_alloc(arena* a) {
     return a->contents + idx;
 }
 
-void arena_free(arena* a, con_term_t* t) {
-    if (!t) {
+void arena_sweep(arena* a) {
+    if (a->size == 0) {
         return;
     }
-    if (t->type == SYMBOL) {
-        // Free the stored string
-        free(t->value.sym.str);
+    con_term_t* t;
+#ifdef GC_DEBUG
+    puts("Sweeping an arena");
+#endif
+    for (int i = 0; i < a->size; i++) {
+        t = a->contents + i;
+        if (!t->mark && t->type != UNDEFINED) {
+            // push this index onto the stack
+#ifdef GC_DEBUG
+            printf("Sweep: %p\n", (void*) t);
+#endif
+            if (t->type == ENVIRONMENT) {
+                con_env_deinit(t);
+            }
+            t->type = UNDEFINED;
+            a->free[--a->size] = i;
+        }
     }
-    // Push the index onto the stack
-    size_t idx = t - a->contents;
-    a->free[--a->size] = idx;
-    return;
+    // TODO: See if we can make this more specific
+    // Since we shouldn't have to reset **everything**
+    for (int i = 0; i < a->capacity; i++) {
+        a->contents[i].mark = 0;
+    }
+#ifdef GC_DEBUG
+    puts("Finished with an arena");
+#endif
 }
 
-int arena_is_full(arena* a) {
+int arena_is_full(arena* a);
+
+inline int arena_is_full(arena* a) {
     return a->capacity == 0;
 }
 
@@ -73,7 +106,6 @@ typedef struct {
 } arena_pool;
 
 arena_pool* arena_pool_init(size_t capacity) {
-    puts("Initializing arena pool");
     arena_pool* p = calloc(1, sizeof(*p));
     arena **as = calloc(capacity, sizeof(*as));
     p->arenas = as;
@@ -83,7 +115,7 @@ arena_pool* arena_pool_init(size_t capacity) {
 }
 
 void arena_pool_destroy(arena_pool* p) {
-    for (int i = 0; i < p->capacity; i++){
+    for (int i = 0; i < p->size; i++){
         arena_destroy(p->arenas[i]);
     }
     free(p->arenas);
@@ -104,21 +136,43 @@ con_term_t* arena_pool_alloc(arena_pool* p) {
     return arena_alloc(a);
 }
 
+void arena_pool_sweep(arena_pool* p) {
+    size_t total = 0;
+    for (int i = 0; i < p->size; i++) {
+        arena_sweep(p->arenas[i]);
+        total += p->arenas[i]->size;
+    }
+}
+
 static arena_pool *obj_pool = NULL;
+
+void symbol_destroy(void* t) {
+    con_term_t *sym = t;
+    free(sym->value.sym.str);
+    free(sym);
+}
 
 void con_alloc_init() {
     obj_pool    = arena_pool_init(POOL_SIZE);
-    con_symbols = g_hash_table_new(g_str_hash, g_str_equal);
-    con_true    = con_alloc(CON_TRUE);
-    con_false   = con_alloc(CON_FALSE);
+    con_symbols = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, symbol_destroy);
+    con_true    = malloc(sizeof(*con_true));
+    con_true->type = CON_TRUE;
+    con_false   = malloc(sizeof(*con_false));
+    con_false->type = CON_FALSE;
 }
 
+void destroy_roots();
+
 void con_alloc_deinit() {
+    // Free singleton objects
+    free(con_true);
+    free(con_false);
+    destroy_roots();
     arena_pool_destroy(obj_pool);
     g_hash_table_destroy(con_symbols);
-    con_destroy(con_true);
-    con_destroy(con_false);
 }
+
+void con_gc();
 
 con_term_t* con_alloc(int type) {
     con_term_t* term = arena_pool_alloc(obj_pool);
@@ -128,6 +182,7 @@ con_term_t* con_alloc(int type) {
         CDR(term) = NULL;
         term->value.list.length = 0;
     }
+    allocations_since_gc += 1;
     return term;
 }
 
@@ -175,8 +230,121 @@ con_term_t* con_alloc_false() {
     return con_false;
 }
 
+typedef struct root {
+    con_term_t** t;
+    struct root* next;
+} root;
+
+static root* roots = NULL;
+
+size_t count_roots() {
+    size_t count = 0;
+    for (root *r = roots; r != NULL; r = r->next) {
+        count++;
+    }
+    return count;
+}
+
 void con_gc() {
-    // Mark all symbols
-    // Mark all constants
-    // Start from the root and mark everything else.
+    if ((!initial_gc && allocations_since_gc < INIT_GC_ALLOC_TRIGGER) ||
+        (allocations_since_gc < GC_ALLOC_TRIGGER)) {
+        return;
+    }
+    allocations_since_gc = 0;
+    initial_gc = 1;
+    root* r = roots;
+#ifdef GC_DEBUG
+    puts("\nGC Running.");
+    printf("There are %lu roots.\n", count_roots());
+    puts("Marky mark");
+#endif
+    while (r != NULL) {
+        if (*r->t) {
+            printf("about to trace %p -> %p\n", r->t, (void*)*r->t);
+            trace(*r->t);
+        }
+        puts("done tracing");
+        r = r->next;
+    }
+#ifdef GC_DEBUG
+    puts("Sweepy sweep.");
+#endif
+    arena_pool_sweep(obj_pool);
+#ifdef GC_DEBUG
+    puts("GC run complete.");
+#endif
+}
+
+void trace(con_term_t*);
+
+void mark_environment_values(GHashTable* g) {
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init(&iter, g);
+    while (g_hash_table_iter_next(&iter, &key, &value))
+    {
+        con_term_t* t = value;
+        trace(t);
+    }
+}
+
+void trace(con_term_t* t) {
+    if (!t || t->mark) {
+        return;
+    }
+#ifdef GC_DEBUG
+    printf("Tracing: %p\n", (void*)t);
+#endif
+    t->mark = 1;
+    if (t->type == LIST) {
+        trace(t->value.list.car);
+        trace(t->value.list.cdr);
+    } else if (t->type == LAMBDA) {
+        trace(t->value.lambda.vars);
+        trace(t->value.lambda.body);
+        trace(t->value.lambda.parent_env);
+    } else if (t->type == ENVIRONMENT) {
+        mark_environment_values(t->value.env.table);
+    }
+}
+
+void con_root(con_term_t **t) {
+#ifdef GC_DEBUG
+    printf("Rooting object:   %p\n", (void*)(t));
+#endif
+    root* r = malloc(sizeof(*r));
+    r->t = t;
+    r->next = roots;
+    roots = r;
+}
+
+void con_unroot(con_term_t **t) {
+#ifdef GC_DEBUG
+    if (*t) {
+        printf("Unrooting object: %p\n", (void*)(t));
+    } else {
+        puts("Unrooting a currently NULL object.");
+    }
+#endif
+    root **r;
+    for (r = &roots; *r != NULL; r = &(*r)->next) {
+        if ((*r)->t == t) {
+            root* next = (*r)->next;
+            free(*r);
+            *r = next;
+            return;
+        }
+    }
+    puts("UNREACHABLE!");
+    *NULL;
+}
+
+void destroy_roots() {
+    root *r = roots, *p = NULL;
+    while (r) {
+        p = r;
+        r = r->next;
+        free(p);
+    }
 }

@@ -4,11 +4,18 @@
 
 #include "mpc.h"
 
-#define NUM_PARSERS 8
+#define NUM_PARSERS 9
 
 struct con_parser_t {
     mpc_parser_t* con;
-    mpc_parser_t* rest[NUM_PARSERS];
+    mpc_parser_t* fixnum;
+    mpc_parser_t* flonum;
+    mpc_parser_t* reserved;
+    mpc_parser_t* operator;
+    mpc_parser_t* boolean;
+    mpc_parser_t* symbol;
+    mpc_parser_t* term;
+    mpc_parser_t* list;
 };
 
 con_term_t* mpc_ast_to_list(mpc_ast_t* t);
@@ -43,16 +50,16 @@ con_parser_t* con_parser_init() {
         fixnum, flonum, reserved, operator, boolean, symbol, term, list, con);
 
     con_parser_t* parser = malloc(sizeof(*parser));
-    parser->con = con;
 
-    parser->rest[0] = fixnum;
-    parser->rest[1] = flonum;
-    parser->rest[2] = reserved;
-    parser->rest[3] = operator;
-    parser->rest[4] = boolean;
-    parser->rest[5] = symbol;
-    parser->rest[6] = term;
-    parser->rest[7] = list;
+    parser->con      = con;
+    parser->fixnum   = fixnum;
+    parser->flonum   = flonum;
+    parser->reserved = reserved;
+    parser->operator = operator;
+    parser->boolean  = boolean;
+    parser->symbol   = symbol;
+    parser->term     = term;
+    parser->list     = list;
 
     return parser;
 }
@@ -76,10 +83,17 @@ con_term_t* con_parser_parse(con_parser_t* parser, char* tag, char* input) {
 }
 
 void con_parser_destroy(con_parser_t* parser) {
-    mpc_cleanup(1, parser->con);
-    for (int i = 0; i < NUM_PARSERS; i++) {
-        mpc_cleanup(1, parser->rest[i]);
-    }
+    mpc_cleanup(NUM_PARSERS,
+        parser->con,
+        parser->fixnum,
+        parser->flonum,
+        parser->reserved,
+        parser->operator,
+        parser->boolean,
+        parser->symbol,
+        parser->term,
+        parser->list);
+    free(parser);
 }
 
 con_term_t* mpc_ast_to_term(mpc_ast_t* t) {

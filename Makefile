@@ -32,6 +32,6 @@ clean:
 
 valgrind: $(TARGET)
 	G_SLICE=always-malloc valgrind \
-		--suppressions=glib.supp --leak-check=full --show-reachable=yes $(BIN)/$(TARGET)
+		--suppressions=glib.supp --leak-check=full $(BIN)/$(TARGET)
 
 .PHONY: clean
