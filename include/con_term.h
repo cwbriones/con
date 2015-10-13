@@ -21,6 +21,7 @@ struct _GHashTable;
 
 typedef struct con_term_t {
     CON_TYPE type;
+    int mark:1;
     union {
         long fixnum;
         double flonum;
@@ -58,5 +59,6 @@ void                con_env_add_builtins(con_term_t*);
 #define CADDR(t) (CAR(CDR(CDR(t))))
 
 con_term_t* cons(con_term_t*, con_term_t*);
+void trace(con_term_t*);
 
 #endif /* end of include guard:  */

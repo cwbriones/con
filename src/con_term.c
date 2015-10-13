@@ -33,3 +33,22 @@ inline con_term_t* cons(con_term_t* first, con_term_t* rest) {
 
     return pair;
 }
+
+void trace(con_term_t* root) {
+    /* if (root->mark) { */
+    /*     return; */
+    /* } */
+    /* switch (root->type) { */
+    /*     case LIST: */
+    /*         trace(root->value.list.car); */
+    /*         trace(root->value.list.cdr); */
+    /*         break; */
+    /*     case LAMBDA: */
+    /*         trace(root->value.lambda.env); */
+    /*         trace(root->value.lambda.vars); */
+    /*         trace(root->value.lambda.body); */
+    /*     default: */
+    /*         break; */
+    /* } */
+    /* root->mark = 1; */
+}
