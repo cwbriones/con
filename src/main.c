@@ -32,8 +32,6 @@ con_term_t* eval(con_term_t* env, con_term_t* list);
 con_term_t* thunk(con_term_t* env, con_term_t* code);
 
 con_term_t* eval_args(con_term_t* env, con_term_t* list) {
-    // Create the evaluated args by reversing and evaluating
-    // TODO: safely modify in place.
     con_root(&list);
     for(con_term_t* t = list; t->type != EMPTY_LIST; t = CDR(t)) {
         CAR(t) = eval(env, CAR(t));
@@ -43,16 +41,22 @@ con_term_t* eval_args(con_term_t* env, con_term_t* list) {
 }
 
 void eval_define(con_term_t* env, con_term_t* t) {
-    if (t->value.list.length != 2) {
-        puts("ERROR: Invalid define form.");
-    } else if (CAR(t)->type != SYMBOL) {
-        puts("ERROR: Invalid define form, expected symbol.");
+    con_term_t* val = NULL;
+    if (t->value.list.length == 2 && CAR(t)->type == SYMBOL) {
+        val = eval(env, CADR(t));
+    } else if (t->value.list.length >= 2 && CAR(t)->type == LIST) {
+        con_term_t* vars = CDR(CAR(t));
+        con_term_t* body = CADR(t);
+        t = CAR(t);
+        val = con_alloc(LAMBDA);
+        val->value.lambda.vars = vars;
+        val->value.lambda.body = body;
+        val->value.lambda.parent_env = env;
     }
-    con_term_t* val = eval(env, CADR(t));
     if (val) {
         con_env_bind(env, CAR(t), val);
     } else {
-        puts("Define failed... :(");
+        puts("ERROR: Invalid define form.");
     }
 }
 
@@ -80,9 +84,6 @@ con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
     con_term_t* vars  = lambda->value.lambda.vars;
     int arity         = vars->value.list.length;
     int length        = args->value.list.length;
-    // FIXME: Args is printing out as <lambda> or <environment> with the following
-    // input: ((lambda () 1))
-    // I think I fixed this. We didn't root the enviornment correctly.
     if (length != arity) {
         printf("ERROR: Expected %d arguments, got %d.\n", arity, length);
         return NULL;
@@ -129,15 +130,6 @@ con_term_t* eval_list_trampoline(con_term_t* env, con_term_t* t) {
         func = eval(env, first);
         con_unroot(&args);
         if (func && func->type == BUILTIN) {
-            /* puts("eval function"); */
-            /* con_term_print_message("args: ", CDR(t)); */
-            /* con_term_t *result = NULL, *args = eval_args(env, CDR(t)); */
-            /* con_term_print_message("evald args: ", args); */
-            /* con_root(&args); */
-            /* result = func->value.builtin(args); */
-            /* con_unroot(&args); */
-            // Should root args since there is the potential
-            // for garbage collection to occur here.
             return func->value.builtin(args);
         } else if (func && func->type == LAMBDA) {
             return eval_lambda_call(func, args);
@@ -154,7 +146,6 @@ con_term_t* eval_list(con_term_t* env, con_term_t* t) {
     while (result == &current_thunk) {
         env = CAR(&current_thunk);
         t   = CDR(&current_thunk);
-        /* con_term_print_message("Tail call: ", t); */
         con_root(&env);
         result = eval_list_trampoline(env, t);
         con_unroot(&env);
