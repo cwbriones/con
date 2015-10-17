@@ -26,29 +26,20 @@ void init_keywords() {
     keywords[KWD_IF]     = con_alloc_sym("if");
 }
 
+con_term_t current_thunk;
+
 con_term_t* eval(con_term_t* env, con_term_t* list);
+con_term_t* thunk(con_term_t* env, con_term_t* code);
 
 con_term_t* eval_args(con_term_t* env, con_term_t* list) {
     // Create the evaluated args by reversing and evaluating
-    con_term_t *args = NULL, **a = &args, *t;
-    size_t length = list->value.list.length;
-
-    con_root(&args);
+    // TODO: safely modify in place.
     con_root(&list);
-    for(t = list; t->type != EMPTY_LIST; t = CDR(t)) {
-        // FIXME: I think the issue is here. We allocate a list
-        // and somehow during the trace it goes boom
-        *a = con_alloc(LIST);
-        CAR(*a) = NULL;
-        CDR(*a) = NULL;
-        CAR(*a) = eval(env, CAR(t));
-        (*a)->value.list.length = length--;
-        a = &CDR(*a);
+    for(con_term_t* t = list; t->type != EMPTY_LIST; t = CDR(t)) {
+        CAR(t) = eval(env, CAR(t));
     }
-    *a = con_alloc(EMPTY_LIST);
     con_unroot(&list);
-    con_unroot(&args);
-    return args;
+    return list;
 }
 
 void eval_define(con_term_t* env, con_term_t* t) {
@@ -105,13 +96,10 @@ con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
         vars = CDR(vars);
         args = CDR(args);
     }
-    con_root(&inner);
-    con_term_t* result = eval(inner, lambda->value.lambda.body);
-    con_unroot(&inner);
-    return result;
+    return thunk(inner, lambda->value.lambda.body);
 }
 
-con_term_t* eval_list(con_term_t* env, con_term_t* t) {
+con_term_t* eval_list_trampoline(con_term_t* env, con_term_t* t) {
     con_term_t *first = CAR(t);
     t = CDR(t);
     if (first == keywords[KWD_QUOTE]) {
@@ -159,6 +147,29 @@ con_term_t* eval_list(con_term_t* env, con_term_t* t) {
         }
     }
     return NULL;
+}
+
+con_term_t* eval_list(con_term_t* env, con_term_t* t) {
+    con_term_t* result = eval_list_trampoline(env, t);
+    while (result == &current_thunk) {
+        env = CAR(&current_thunk);
+        t   = CDR(&current_thunk);
+        /* con_term_print_message("Tail call: ", t); */
+        con_root(&env);
+        result = eval_list_trampoline(env, t);
+        con_unroot(&env);
+    }
+    return result;
+}
+
+con_term_t* thunk(con_term_t* env, con_term_t* code) {
+    if (code->type != LIST) {
+        return eval(env, code);
+    }
+    current_thunk.type = LIST;
+    CAR(&current_thunk) = env;
+    CDR(&current_thunk) = code;
+    return &current_thunk;
 }
 
 con_term_t* eval(con_term_t* env, con_term_t* t) {

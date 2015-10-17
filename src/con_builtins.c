@@ -148,9 +148,9 @@ con_term_t* builtin_less_than(con_term_t* args) {
     con_term_t *lhs = CAR(args), *rhs = CAR(CDR(args));
     if (lhs->type == rhs->type) {
         if (lhs->type == FIXNUM) {
-            return lhs->value.fixnum < rhs->value.fixnum ? con_alloc_false() : con_alloc_true();
+            return lhs->value.fixnum < rhs->value.fixnum ? con_alloc_true() : con_alloc_false();
         } else if (lhs->type == FLONUM) {
-            return lhs->value.flonum < rhs->value.flonum ? con_alloc_false() : con_alloc_true();
+            return lhs->value.flonum < rhs->value.flonum ? con_alloc_true() : con_alloc_false();
         }
     }
     printf("ERROR: Cannot compare arguments.");
@@ -166,9 +166,9 @@ con_term_t* builtin_greater_than(con_term_t* args) {
     con_term_t *lhs = CAR(args), *rhs = CADR(args);
     if (lhs->type == rhs->type) {
         if (lhs->type == FIXNUM) {
-            return lhs->value.fixnum > rhs->value.fixnum ? con_alloc_sym("false") : con_alloc_sym("true");
+            return lhs->value.fixnum > rhs->value.fixnum ? con_alloc_true() : con_alloc_false();
         } else if (lhs->type == FLONUM) {
-            return lhs->value.flonum > rhs->value.flonum ? con_alloc_sym("false") : con_alloc_sym("true");
+            return lhs->value.flonum > rhs->value.flonum ? con_alloc_true() : con_alloc_false();
         }
     }
     printf("ERROR: Cannot compare arguments.");
@@ -197,8 +197,8 @@ void con_env_add_builtins(con_term_t* env) {
 
     // Predicates
     con_env_add_builtin(env, "is?", builtin_is);
-    con_env_add_builtin(env, "eq?", builtin_equals);
-    con_env_add_builtin(env, ">", builtin_less_than);
-    con_env_add_builtin(env, "<", builtin_greater_than);
+    con_env_add_builtin(env, "=", builtin_equals);
+    con_env_add_builtin(env, "<", builtin_less_than);
+    con_env_add_builtin(env, ">", builtin_greater_than);
 }
 

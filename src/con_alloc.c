@@ -96,7 +96,7 @@ void arena_sweep(arena* a) {
 int arena_is_full(arena* a);
 
 inline int arena_is_full(arena* a) {
-    return a->capacity == 0;
+    return a->capacity == a->size;
 }
 
 typedef struct {
@@ -260,10 +260,8 @@ void con_gc() {
 #endif
     while (r != NULL) {
         if (*r->t) {
-            printf("about to trace %p -> %p\n", r->t, (void*)*r->t);
             trace(*r->t);
         }
-        puts("done tracing");
         r = r->next;
     }
 #ifdef GC_DEBUG
@@ -294,7 +292,7 @@ void trace(con_term_t* t) {
         return;
     }
 #ifdef GC_DEBUG
-    printf("Tracing: %p\n", (void*)t);
+    /* printf("Tracing: %p\n", (void*)t); */
 #endif
     t->mark = 1;
     if (t->type == LIST) {

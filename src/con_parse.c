@@ -39,7 +39,7 @@ con_parser_t* con_parser_init() {
             flonum    : /-?[0-9]+\\.[0-9]*/ ;                         \
             reserved  : \"lambda\" | \"let\" | \"define\" |           \
                         \"set\" | \"if\";                             \
-            operator  : '+' | '-' | '*' | '/' ;                       \
+            operator  : '+' | '-' | '*' | '/' | '=' | '<' | '>' ;     \
             boolean   : \"true\" | \"false\" ;                        \
             symbol    : <operator> | /[_a-zA-Z][_a-zA-Z\\-0-9]*[\?!]?/;\
             term      : <flonum> | <fixnum> | <boolean> | <list> |    \
