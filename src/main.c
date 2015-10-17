@@ -32,12 +32,26 @@ con_term_t* eval(con_term_t* env, con_term_t* list);
 con_term_t* thunk(con_term_t* env, con_term_t* code);
 
 con_term_t* eval_args(con_term_t* env, con_term_t* list) {
+    // Create the evaluated args by reversing and evaluating
+    con_term_t *args = NULL, **a = &args, *t;
+    size_t length = list->value.list.length;
+
+    con_root(&args);
     con_root(&list);
-    for(con_term_t* t = list; t->type != EMPTY_LIST; t = CDR(t)) {
-        CAR(t) = eval(env, CAR(t));
+    for(t = list; t->type != EMPTY_LIST; t = CDR(t)) {
+        // FIXME: I think the issue is here. We allocate a list
+        // and somehow during the trace it goes boom
+        *a = con_alloc(LIST);
+        CAR(*a) = NULL;
+        CDR(*a) = NULL;
+        CAR(*a) = eval(env, CAR(t));
+        (*a)->value.list.length = length--;
+        a = &CDR(*a);
     }
+    *a = con_alloc(EMPTY_LIST);
     con_unroot(&list);
-    return list;
+    con_unroot(&args);
+    return args;
 }
 
 void eval_define(con_term_t* env, con_term_t* t) {

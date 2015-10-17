@@ -6,7 +6,7 @@
 #include "con_alloc.h"
 #include "con_term.h"
 
-#define POOL_SIZE 100
+#define POOL_SIZE 1000
 #define POOL_ARENA_SIZE 1000
 
 #ifdef GC_DEBUG
