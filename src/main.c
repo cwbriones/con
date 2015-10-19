@@ -14,6 +14,7 @@ enum {
     KWD_SET,
     KWD_LAMBDA,
     KWD_IF,
+    KWD_LET,
     NUM_KEYWORDS
 } KEYWORDS;
 
@@ -23,6 +24,7 @@ void init_keywords() {
     keywords[KWD_QUOTE]  = con_alloc_sym("quote");
     keywords[KWD_DEFINE] = con_alloc_sym("define");
     keywords[KWD_LAMBDA] = con_alloc_sym("lambda");
+    keywords[KWD_LET]    = con_alloc_sym("let");
     keywords[KWD_IF]     = con_alloc_sym("if");
 }
 
@@ -114,6 +116,26 @@ con_term_t* eval_lambda_call(con_term_t* lambda, con_term_t* args) {
     return thunk(inner, lambda->value.lambda.body);
 }
 
+con_term_t* eval_let(con_term_t* env, con_term_t* t) {
+    if (t->value.list.length != 2) {
+        puts("ERROR: Invalid let form.");
+        return NULL;
+    }
+    con_term_t* vars = con_alloc(EMPTY_LIST);
+    con_term_t* args = con_alloc(EMPTY_LIST);
+    for (con_term_t *entry = NULL, *b = CAR(t); b->type != EMPTY_LIST; b = CDR(b)) {
+        entry = CAR(b);
+        vars = cons(CAR(entry), vars);
+        args = cons(CADR(entry), args);
+    }
+    con_term_t* lambda = con_alloc(LAMBDA);
+    lambda->value.lambda.parent_env = env;
+    lambda->value.lambda.vars = vars;
+    lambda->value.lambda.body = CADR(t);
+    args = eval_args(env, args);
+    return eval_lambda_call(lambda, args);
+}
+
 con_term_t* eval_list_trampoline(con_term_t* env, con_term_t* t) {
     con_term_t *first = CAR(t);
     t = CDR(t);
@@ -121,6 +143,8 @@ con_term_t* eval_list_trampoline(con_term_t* env, con_term_t* t) {
         return CAR(t);
     } else if (first == keywords[KWD_DEFINE]) {
         eval_define(env, t);
+    } else if (first == keywords[KWD_LET]) {
+        return eval_let(env, t);
     } else if (first == keywords[KWD_LAMBDA]) {
         return eval_lambda(env, t);
     } else if (first == keywords[KWD_IF]) {
