@@ -35,18 +35,18 @@ con_term_t* thunk(con_term_t* env, con_term_t* code);
 
 con_term_t* eval_args(con_term_t* env, con_term_t* list) {
     // Create the evaluated args by reversing and evaluating
-    con_term_t *args = NULL, **a = &args, *t;
+    con_term_t *args = NULL, **a = &args;
     size_t length = list->value.list.length;
 
     con_root(&args);
     con_root(&list);
-    for(t = list; t->type != EMPTY_LIST; t = CDR(t)) {
+    CON_LIST_FOREACH(entry, list) {
         // FIXME: I think the issue is here. We allocate a list
         // and somehow during the trace it goes boom
         *a = con_alloc(LIST);
         CAR(*a) = NULL;
         CDR(*a) = NULL;
-        CAR(*a) = eval(env, CAR(t));
+        CAR(*a) = eval(env, entry);
         (*a)->value.list.length = length--;
         a = &CDR(*a);
     }
@@ -123,8 +123,7 @@ con_term_t* eval_let(con_term_t* env, con_term_t* t) {
     }
     con_term_t* vars = con_alloc(EMPTY_LIST);
     con_term_t* args = con_alloc(EMPTY_LIST);
-    for (con_term_t *entry = NULL, *b = CAR(t); b->type != EMPTY_LIST; b = CDR(b)) {
-        entry = CAR(b);
+    CON_LIST_FOREACH(entry, CAR(t)) {
         vars = cons(CAR(entry), vars);
         args = cons(CADR(entry), args);
     }

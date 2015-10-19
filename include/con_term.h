@@ -65,4 +65,9 @@ void                trace(con_term_t*);
 #define CADR(t) (CAR(CDR(t)))
 #define CADDR(t) (CAR(CDR(CDR(t))))
 
+#define CON_LIST_FOREACH(I, L) \
+    for (con_term_t *__list_iter__ = (L), *I = CAR(L);\
+    __list_iter__->type != EMPTY_LIST;\
+    __list_iter__ = CDR(__list_iter__), I = CAR(__list_iter__))
+
 #endif /* end of include guard:  */
